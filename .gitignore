@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.tsbuildinfo
+.env
+.npm-cache/
+.tmp/
+data/raw/*.csv
+data/sample/*.csv
+!data/raw/.gitkeep

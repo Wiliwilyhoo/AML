@@ -1,0 +1,15 @@
+[
+  "function admin() view returns (address)",
+  "function reviewers(address) view returns (bool)",
+  "function registerAlert(bytes32 alertId, bytes32 evidenceHash, uint32 version)",
+  "function updateReviewStatus(bytes32 alertId, uint8 next, bytes32 evidenceHash, uint32 version)",
+  "function getAlert(bytes32 alertId) view returns (tuple(bool exists,uint8 status,uint32 version,address reviewer,uint64 updatedAt))",
+  "function getEvidenceHash(bytes32 alertId,uint32 version) view returns (bytes32)",
+  "function verifyEvidence(bytes32 alertId,uint32 version,bytes32 supplied) view returns (bool)",
+  "function grantReviewerRole(address reviewer)",
+  "function revokeReviewerRole(address reviewer)",
+  "event AlertRegistered(bytes32 indexed alertId,bytes32 evidenceHash,uint32 version,address indexed reviewer)",
+  "event ReviewStatusUpdated(bytes32 indexed alertId,uint8 status,bytes32 evidenceHash,uint32 version,address indexed reviewer)",
+  "event ReviewerGranted(address indexed reviewer)",
+  "event ReviewerRevoked(address indexed reviewer)"
+]

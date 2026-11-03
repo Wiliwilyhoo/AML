@@ -1,0 +1,72 @@
+// Optional local EVM check. Tooling is isolated under .tmp/qa; no app dependency.
+const fs=require('node:fs');
+const path=require('node:path');
+const assert=require('node:assert/strict');
+const {createRequire}=require('node:module');
+const root=path.resolve(__dirname,'..');
+const qa=createRequire(path.join(root,'.tmp/qa/package.json'));
+const solc=qa('solc');
+const ganache=qa('ganache');
+const {BrowserProvider,Contract,ContractFactory,Interface,id,sha256,toUtf8Bytes,ZeroHash,ZeroAddress}=require('../frontend/node_modules/ethers');
+(async()=>{
+ assert.ok(solc.version().startsWith('0.8.20+'),'Use solc 0.8.20 for this check');
+ const source=fs.readFileSync(path.join(root,'contracts/AMLAuditTrail.sol'),'utf8');
+ const output=JSON.parse(solc.compile(JSON.stringify({language:'Solidity',sources:{'AMLAuditTrail.sol':{content:source}},settings:{optimizer:{enabled:true,runs:200},evmVersion:'shanghai',outputSelection:{'*':{'*':['abi','evm.bytecode.object']}}}})));
+ const errors=(output.errors||[]).filter(e=>e.severity==='error');assert.deepEqual(errors,[]);
+ const artifact=output.contracts['AMLAuditTrail.sol'].AMLAuditTrail;
+ const actual=new Interface(artifact.abi),bundled=new Interface(JSON.parse(fs.readFileSync(path.join(root,'frontend/src/abi/AMLAuditTrail.json'),'utf8')));
+ for(const fragment of bundled.fragments)assert.ok(actual.fragments.some(f=>f.type===fragment.type&&f.format('sighash')===fragment.format('sighash')),'ABI mismatch '+fragment.format('sighash'));
+ const local=ganache.provider({logging:{quiet:true},chain:{hardfork:'shanghai'}});
+ const provider=new BrowserProvider(local);
+ provider.pollingInterval=50;
+ try{
+  const admin=await provider.getSigner(0),outsider=await provider.getSigner(1);
+  const deployed=await new ContractFactory(artifact.abi,artifact.evm.bytecode.object,admin).deploy();await deployed.waitForDeployment();
+  const contract=new Contract(await deployed.getAddress(),bundled,admin);
+  const A=id('AL-test'),H1=sha256(toUtf8Bytes('canonical-v1')),H2=sha256(toUtf8Bytes('canonical-v2'));
+  const denied=async(fn,reason)=>{await assert.rejects(fn,error=>{if(reason)assert.equal(error.reason,reason);return true;});};
+  const receipt=await(await contract.registerAlert(A,H1,1)).wait();
+  assert.equal(contract.interface.parseLog(receipt.logs[0]).name,'AlertRegistered');
+  assert.equal(await contract.verifyEvidence(A,1,H1),true);
+  assert.equal(await contract.verifyEvidence(A,1,H2),false);
+  await denied(()=>contract.registerAlert.staticCall(A,H2,2),'Alert already registered');
+  await denied(()=>contract.connect(outsider).registerAlert.staticCall(id('unauthorized'),H1,1),'Only authorized reviewers can register alerts');
+  await denied(()=>contract.connect(outsider).updateReviewStatus.staticCall(A,1,H2,2),'Only authorized reviewers can update reviews');
+  await denied(()=>contract.connect(outsider).grantReviewerRole.staticCall(outsider.address),'Only admin can grant reviewer role');
+  await denied(()=>contract.updateReviewStatus.staticCall(A,4,H2,2),'Invalid review status transition');
+  await denied(()=>contract.registerAlert.staticCall(ZeroHash,H1,1),'Invalid alert ID');
+  await denied(()=>contract.registerAlert.staticCall(id('empty-hash'),ZeroHash,1),'Evidence hash cannot be zero');
+  await denied(()=>contract.registerAlert.staticCall(id('zero-version'),H1,0),'Evidence version must be greater than zero');
+  await denied(()=>contract.grantReviewerRole.staticCall(ZeroAddress),'Invalid reviewer address');
+  await denied(()=>contract.getAlert(id('missing')),'Alert is not registered');
+  const updated=await(await contract.updateReviewStatus(A,1,H2,2,{gasLimit:200000})).wait();
+  assert.equal(contract.interface.parseLog(updated.logs[0]).name,'ReviewStatusUpdated');
+  assert.equal((await contract.getAlert(A)).status,1n);
+  assert.equal(await contract.verifyEvidence(A,1,H1),true);
+  assert.equal(await contract.verifyEvidence(A,2,H2),true);
+  await denied(()=>contract.updateReviewStatus.staticCall(A,4,H1,2),'Evidence version must increase');
+  const granted=await(await contract.grantReviewerRole(outsider.address)).wait();assert.equal(contract.interface.parseLog(granted.logs[0]).name,'ReviewerGranted');
+  await(await contract.connect(outsider).registerAlert(id('other'),H1,1)).wait();
+  const revoked=await(await contract.revokeReviewerRole(outsider.address)).wait();assert.equal(contract.interface.parseLog(revoked.logs[0]).name,'ReviewerRevoked');
+  await denied(()=>contract.connect(outsider).registerAlert.staticCall(id('third'),H1,1),'Only authorized reviewers can register alerts');
+  await(await contract.updateReviewStatus(A,4,sha256(toUtf8Bytes('closed')),3,{gasLimit:200000})).wait();
+  await denied(()=>contract.updateReviewStatus.staticCall(A,1,H1,4),'Invalid review status transition');
+  if(process.argv.includes('--api')){
+   const call=async(route,body)=>{const response=await fetch('http://127.0.0.1:8000/api'+route,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);assert.equal(response.ok,true,await response.clone().text());return response.json();};
+   const alerts=await call('/alerts?status=New&page_size=1');assert.ok(alerts.items.length,'API needs a New alert');const aid=alerts.items[0].id;
+   const first=await call('/alerts/'+aid+'/evidence',{reviewer:'Local EVM integration check'});
+   assert.equal(sha256(toUtf8Bytes(first.canonical)),first.hash,'Python canonical commitment matches ethers');
+   await(await contract.registerAlert(id(aid),first.hash,first.version)).wait();
+   await call('/alerts/'+aid+'/review',{status:'Under Review',reviewer:'Local EVM integration check',note:'Supporting transactions inspected'});
+   const second=await call('/alerts/'+aid+'/evidence',{reviewer:'Local EVM integration check'});
+   assert.equal(second.payload[8],first.hash,'off-chain previous evidence chain');
+   await(await contract.updateReviewStatus(id(aid),1,second.hash,second.version,{gasLimit:200000})).wait();
+   assert.equal(await contract.verifyEvidence(id(aid),first.version,first.hash),true);
+   assert.equal(await contract.verifyEvidence(id(aid),second.version,second.hash),true);
+   const tampered=JSON.parse(second.canonical);tampered[6]+=' tampered';
+   assert.equal(await contract.verifyEvidence(id(aid),second.version,sha256(toUtf8Bytes(JSON.stringify(tampered)))),false);
+   console.log('Integration passed: loaded CSV/sample → API alert → investigation → Python canonical evidence → local EVM register/update → old/new verification → tamper rejection.');
+  }
+  console.log('Solidity 0.8.20 compiled; bundled ABI matches; local EVM passed require messages, roles, registration, duplicate, status, version, event and tamper checks. No public deployment.');
+ }finally{await local.disconnect();}
+})().catch(e=>{console.error(e);process.exit(1);});
