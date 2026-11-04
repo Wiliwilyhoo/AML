@@ -16,6 +16,8 @@ The source follows the teaching example's STEP structure: state and mappings, ev
 
 ## Deploy
 
+In Remix, select compiler **0.8.20**, EVM target **Shanghai**, and contract **AMLAuditTrail** from `AMLAuditTrail.sol`. The constructor has no arguments. Set **VALUE to 0 wei** before clicking Deploy: this contract's constructor is nonpayable. The deploying account pays gas separately; do not enter its gas budget in VALUE. Sending ETH as deployment VALUE will revert.
+
 1. In **Deploy & Run Transactions**, first select a **Remix VM** to practice without real funds.
 2. For the actual demo, enable test networks in MetaMask, select **Sepolia**, and fund the intended deployer with test ETH from a trusted faucet.
 3. Select **Injected Provider – MetaMask** in Remix. Confirm the chain is **11155111** and the selected address is the intended admin.

@@ -13,10 +13,16 @@ export async function api<T>(
           body: JSON.stringify(body),
         },
   );
-  const data = await response.json();
+  const data = await response.json().catch(() => {
+    throw new Error(
+      `API returned an empty or non-JSON response (HTTP ${response.status}). Check FastAPI at http://127.0.0.1:8000/api/health.`,
+    );
+  });
   if (!response.ok)
     throw new Error(
-      typeof data.detail === "string" ? data.detail : "Request failed",
+      typeof data?.detail === "string"
+        ? data.detail
+        : `API request failed (HTTP ${response.status})`,
     );
   return data;
 }

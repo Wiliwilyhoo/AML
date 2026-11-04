@@ -15,6 +15,7 @@ import Investigation from "./Investigation";
 import Audit from "./Audit";
 import Graph from "./Graph";
 import { api } from "../services/api";
+import { configured } from "../services/web3";
 vi.mock("../services/api", async () => ({
   ...(await vi.importActual("../services/api")),
   api: vi.fn(),
@@ -168,10 +169,10 @@ describe("Connected dashboard workflows", () => {
     mount(<Graph />);
     expect(await screen.findByText("2 nodes · 1 edges")).toBeTruthy();
   });
-  it("displays blockchain unconfigured and missing MetaMask states", async () => {
+  it("displays blockchain configuration and missing MetaMask states", async () => {
     mocked.mockResolvedValue([]);
     mount(<Audit notify={() => {}} />);
-    expect(await screen.findByText(/Blockchain unconfigured/)).toBeTruthy();
+    expect(await screen.findByText(configured ? /Sepolia configured/ : /Blockchain unconfigured/)).toBeTruthy();
     fireEvent.click(screen.getByText("Connect MetaMask"));
     expect(await screen.findByRole("alert")).toHaveProperty(
       "textContent",

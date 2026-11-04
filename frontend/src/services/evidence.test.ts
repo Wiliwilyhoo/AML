@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { canonical, hashEvidence } from "./evidence";
 import { params } from "./api";
-import { walletError, connectWallet } from "./web3";
+import { address, walletError, connectWallet } from "./web3";
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../contract.js";
+import { Interface, isAddress } from "ethers";
 import type { EvidencePayload } from "../types";
 describe("Evidence trust boundary", () => {
+  it("uses the supplied contract configuration and audit methods", () => {
+    expect(address).toBe(import.meta.env.VITE_CONTRACT_ADDRESS || CONTRACT_ADDRESS);
+    expect(isAddress(address)).toBe(true);
+    const abi = new Interface(CONTRACT_ABI);
+    for (const name of ["registerAlert", "updateReviewStatus", "getEvidenceHash", "verifyEvidence"])
+      expect(abi.getFunction(name)).not.toBeNull();
+  });
   const payload: EvidencePayload = [
     "AML-SENTINEL-V1",
     "AL-test",

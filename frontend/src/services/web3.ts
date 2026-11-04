@@ -7,7 +7,7 @@ import {
   isAddress,
   type Eip1193Provider,
 } from "ethers";
-import ABI from "../abi/AMLAuditTrail.json";
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../contract.js";
 import type { Evidence, Status } from "../types";
 import { hashEvidence } from "./evidence";
 declare global {
@@ -18,7 +18,7 @@ declare global {
     };
   }
 }
-export const address = import.meta.env.VITE_CONTRACT_ADDRESS || "";
+export const address = import.meta.env.VITE_CONTRACT_ADDRESS || CONTRACT_ADDRESS;
 export const chainId = Number(import.meta.env.VITE_CHAIN_ID || 11155111);
 const statuses: Status[] = [
   "New",
@@ -70,13 +70,13 @@ export async function connectWallet() {
 async function contract(write = false) {
   if (!configured)
     throw new Error(
-      "Blockchain unconfigured. Set a Sepolia contract address in frontend/.env.",
+      "Blockchain unconfigured. Check contract.js and the Sepolia chain ID.",
     );
   if (write) {
     const wallet = await connectWallet();
     if ((await wallet.provider.getCode(address)) === "0x")
       throw new Error("No contract deployed at this address on Sepolia.");
-    return new Contract(getAddress(address), ABI, wallet.signer);
+    return new Contract(getAddress(address), CONTRACT_ABI, wallet.signer);
   }
   const rpc = import.meta.env.VITE_RPC_URL;
   const provider = rpc
@@ -92,7 +92,7 @@ async function contract(write = false) {
     throw new Error("Wrong network. Switch to Sepolia.");
   if ((await provider.getCode(address)) === "0x")
     throw new Error("Contract not deployed at configured address.");
-  return new Contract(address, ABI, provider);
+  return new Contract(address, CONTRACT_ABI, provider);
 }
 export async function submitEvidence(
   record: Evidence,
