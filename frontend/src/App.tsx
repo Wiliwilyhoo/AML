@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   NavLink,
   Route,
@@ -41,33 +41,83 @@ import Audit from "./pages/Audit";
 import { ErrorBoundary } from "./components";
 import { api } from "./services/api";
 import type { Replay } from "./types";
-const navigation = [
-  { path: "/", name: "Security Overview", icon: Gauge, section: "MONITOR" },
-  { path: "/transactions", name: "Transaction Monitoring", icon: Activity },
-  { path: "/alerts", name: "Alert Management", icon: ShieldAlert },
+const navGroups = [
   {
-    path: "/investigations",
-    name: "Investigation Center",
-    icon: FolderSearch,
-    section: "INVESTIGATE",
+    name: "Monitor",
+    items: [
+      {
+        path: "/",
+        name: "Security Overview",
+        blurb: "Activity, flags and open reviews",
+        icon: Gauge,
+      },
+      {
+        path: "/transactions",
+        name: "Transaction Monitoring",
+        blurb: "Search and filter every transfer",
+        icon: Activity,
+      },
+      {
+        path: "/alerts",
+        name: "Alert Management",
+        blurb: "Work through flagged activity",
+        icon: ShieldAlert,
+      },
+    ],
   },
-  { path: "/network", name: "Transaction Network", icon: GitBranch },
-  { path: "/audit", name: "Blockchain Audit", icon: Layers3 },
   {
-    path: "/rules",
-    name: "Rule Configuration",
-    icon: Settings2,
-    section: "MANAGE",
+    name: "Investigate",
+    items: [
+      {
+        path: "/investigations",
+        name: "Investigation Center",
+        blurb: "Review cases and record decisions",
+        icon: FolderSearch,
+      },
+      {
+        path: "/network",
+        name: "Transaction Network",
+        blurb: "Follow funds between accounts",
+        icon: GitBranch,
+      },
+      {
+        path: "/audit",
+        name: "Blockchain Audit",
+        blurb: "Commit and verify evidence on Sepolia",
+        icon: Layers3,
+      },
+    ],
   },
-  { path: "/evaluation", name: "Evaluation & Analytics", icon: FileCheck2 },
+  {
+    name: "Manage",
+    items: [
+      {
+        path: "/rules",
+        name: "Rule Configuration",
+        blurb: "Adjust thresholds and rerun detection",
+        icon: Settings2,
+      },
+      {
+        path: "/evaluation",
+        name: "Evaluation & Analytics",
+        blurb: "Measure precision, recall and cost",
+        icon: FileCheck2,
+      },
+    ],
+  },
 ];
+const navigation = navGroups.flatMap((group) => group.items);
+const isActive = (path: string, pathname: string) =>
+  path === "/" ? pathname === "/" : pathname.startsWith(path);
 export default function App() {
   const [scope, setScope] = useSearchParams();
   const hours = Number(scope.get("hours") || 0);
   const location = useLocation(),
     navigate = useNavigate(),
     client = useQueryClient();
-  const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState("");
+  const navRef = useRef<HTMLElement>(null);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
   const [socket, setSocket] = useState("Connecting");
@@ -121,291 +171,273 @@ export default function App() {
       ws?.close();
     };
   }, [client]);
+  useEffect(() => {
+    setOpenGroup("");
+    setMenuOpen(false);
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!openGroup) return;
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key === "Escape") setOpenGroup("");
+      } else if (!navRef.current?.contains(event.target as Node)) {
+        setOpenGroup("");
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [openGroup]);
   const current =
-    navigation.find((n) =>
-      n.path === "/"
-        ? location.pathname === "/"
-        : location.pathname.startsWith(n.path),
-    ) || navigation[0];
+    navigation.find((n) => isActive(n.path, location.pathname)) ||
+    navigation[0];
+  const timeScope = ["/", "/evaluation"].includes(location.pathname);
   return (
     <ErrorBoundary>
-      <div className={"app " + (collapsed ? "collapsed" : "")}>
-        <aside className="sidebar">
-          <NavLink to="/" className="brand">
-            <span className="brand-mark">
-              <Shield size={23} />
-            </span>
-            {!collapsed && (
-              <div>
-                AML<span>Sentinel</span>
-                <small>SECURITY OPERATIONS</small>
-              </div>
-            )}
-          </NavLink>
-          <div className="workspace">
-            <span className="workspace-avatar">S</span>
-            {!collapsed && (
-              <>
-                <div>
-                  Sentinel workspace<small>Compliance operations</small>
-                </div>
-                <ChevronDown size={13} />
-              </>
-            )}
-          </div>
-          <nav aria-label="Main navigation">
-            {navigation.map((n) => (
-              <div key={n.path}>
-                {n.section && !collapsed && (
-                  <p className="nav-section">{n.section}</p>
-                )}
-                <NavLink title={n.name} to={n.path} end={n.path === "/"}>
-                  <n.icon size={18} />
-                  {!collapsed && <span>{n.name}</span>}
-                </NavLink>
-              </div>
-            ))}
-          </nav>
-          <div className="sidebar-bottom">
-            {!collapsed && (
-              <div className="engine-status">
-                <span className="dot" />
-                <div>
-                  Detection engine<small>6 configurable rules</small>
-                </div>
-                <span className="teal">Active</span>
-              </div>
-            )}
-            <button onClick={() => setHelp(!help)}>
-              <CircleHelp size={17} />
-              {!collapsed && "Demo guide & context"}
-            </button>
-            <div className="analyst">
-              <div className="avatar">DA</div>
-              {!collapsed && (
-                <div>
-                  Demo Analyst<small>Compliance reviewer · app identity</small>
-                </div>
-              )}
-            </div>
-          </div>
-        </aside>
-        <div className="main-shell">
-          <header className="topbar">
-            <button
-              className="icon-button"
-              aria-label="Toggle sidebar"
-              onClick={() => setCollapsed(!collapsed)}
+      <div className="main-shell">
+        <header className="site-header">
+          <div className="site-header-inner">
+            <NavLink to="/" className="brand">
+              <Shield size={24} fill="currentColor" />
+              AML Sentinel
+            </NavLink>
+            <nav
+              ref={navRef}
+              className={"site-nav " + (menuOpen ? "open" : "")}
+              aria-label="Main navigation"
             >
-              <Menu size={19} />
-            </button>
-            <div className="breadcrumbs">
-              Workspace <span>/</span> <strong>{current.name}</strong>
-            </div>
-            <form
-              className="global-search"
-              onSubmit={(e) => {
-                e.preventDefault();
-                navigate("/transactions?q=" + encodeURIComponent(search));
-              }}
-            >
-              <Search size={15} />
-              <input
-                aria-label="Global transaction search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search transactions, accounts…"
-              />
-              <kbd>↵</kbd>
-            </form>
-            <span className="demo-pill">DEMO</span>
-            <button
-              className="icon-button"
-              aria-label="Open alert queue"
-              onClick={() => navigate("/alerts")}
-            >
-              <Bell size={18} />
-            </button>
-            <div className="avatar small-avatar">DA</div>
-          </header>
-          <main>
-            <div className="page-heading">
-              <div>
-                <div className="eyebrow">
-                  AML SENTINEL <span>/</span> SECURITY OPERATIONS
-                </div>
-                <h1>{current.name}</h1>
-                <p>
-                  {location.pathname === "/"
-                    ? "A unified view of financial activity, emerging threats, and investigations."
-                    : "Monitor signals, follow the evidence, and document every decision."}
-                </p>
-              </div>
-              {["/", "/evaluation"].includes(location.pathname) && (
-                <div className="time-range">
-                  <Activity size={14} />
-                  <label>
-                    Time scope
-                    <select
-                      aria-label="Time scope"
-                      value={hours}
-                      onChange={(e) => setScope({ hours: e.target.value })}
-                    >
-                      <option value="0">All loaded time</option>
-                      <option value="24">Last 24 source hours</option>
-                      <option value="168">Last 7 source days</option>
-                    </select>
-                  </label>
-                </div>
-              )}
-            </div>
-            <div className="replay-bar">
-              <div>
-                <Radio
-                  size={15}
-                  className={replay.data?.running ? "teal" : "muted"}
-                />
-                <strong>Historical replay</strong>
-                <span className="muted">
-                  {replay.data?.mode === "snapshot"
-                    ? "Full dataset snapshot"
-                    : `${replay.data?.cursor || 0} / ${replay.data?.total || 0} processed`}
-                </span>
-                <span className="socket-status">
-                  <i className={socket === "Connected" ? "dot" : "dot amber"} />
-                  {socket}
-                </span>
-              </div>
-              <div>
-                <label className="speed-label">
-                  Speed
-                  <select
-                    aria-label="Replay speed"
-                    value={replay.data?.speed || 60}
-                    onChange={(e) => {
-                      api("/replay", {
-                        action: "speed",
-                        speed: Number(e.target.value),
-                      })
-                        .then(() =>
-                          client.invalidateQueries({ queryKey: ["replay"] }),
-                        )
-                        .catch((e) => setToast(e.message));
-                    }}
+              {navGroups.map((group) => (
+                <div className="nav-group" key={group.name}>
+                  <button
+                    className={
+                      group.items.some((n) =>
+                        isActive(n.path, location.pathname),
+                      )
+                        ? "active"
+                        : ""
+                    }
+                    aria-expanded={openGroup === group.name}
+                    onClick={() =>
+                      setOpenGroup(openGroup === group.name ? "" : group.name)
+                    }
                   >
-                    {[1, 30, 60, 300, 1000, 3600].map((n) => (
-                      <option value={n} key={n}>
-                        {n}×
-                      </option>
+                    {group.name} <ChevronDown size={14} />
+                  </button>
+                  <div className="nav-menu" hidden={openGroup !== group.name && !menuOpen}>
+                    {group.items.map((n) => (
+                      <NavLink key={n.path} to={n.path} end={n.path === "/"}>
+                        <n.icon size={19} />
+                        <strong>{n.name}</strong>
+                        <small>{n.blurb}</small>
+                      </NavLink>
                     ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+            <div className="header-tools">
+              <form
+                className="global-search"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  navigate("/transactions?q=" + encodeURIComponent(search));
+                }}
+              >
+                <Search size={15} />
+                <input
+                  aria-label="Global transaction search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search transactions, accounts…"
+                />
+              </form>
+              <span className="demo-pill">Demo</span>
+              <button
+                className="icon-button"
+                aria-label="Open demo guide"
+                onClick={() => setHelp(!help)}
+              >
+                <CircleHelp size={19} />
+              </button>
+              <NavLink to="/alerts" className="button primary">
+                Review alerts
+              </NavLink>
+              <button
+                className="icon-button menu-toggle"
+                aria-label="Toggle navigation"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                <Menu size={20} />
+              </button>
+            </div>
+          </div>
+        </header>
+        <div className="replay-bar">
+          <div className="replay-inner">
+            <div>
+              <Radio
+                size={15}
+                className={replay.data?.running ? "teal" : "muted"}
+              />
+              <strong>Historical replay</strong>
+              <span className="muted">
+                {replay.data?.mode === "snapshot"
+                  ? "Full dataset snapshot"
+                  : `${replay.data?.cursor || 0} / ${replay.data?.total || 0} processed`}
+              </span>
+              <span className="socket-status">
+                <i className={socket === "Connected" ? "dot" : "dot amber"} />
+                {socket}
+              </span>
+            </div>
+            <div>
+              {timeScope && (
+                <label className="strip-label">
+                  Time scope
+                  <select
+                    aria-label="Time scope"
+                    value={hours}
+                    onChange={(e) => setScope({ hours: e.target.value })}
+                  >
+                    <option value="0">All loaded time</option>
+                    <option value="24">Last 24 source hours</option>
+                    <option value="168">Last 7 source days</option>
                   </select>
                 </label>
-                <button
-                  disabled={command.isPending}
-                  onClick={() => {
-                    if (
-                      replay.data?.mode === "snapshot" &&
-                      !window.confirm(
-                        "Start historical replay? This clears the loaded snapshot and investigations, preserving session evidence archives.",
+              )}
+              <label className="strip-label">
+                Speed
+                <select
+                  aria-label="Replay speed"
+                  value={replay.data?.speed || 60}
+                  onChange={(e) => {
+                    api("/replay", {
+                      action: "speed",
+                      speed: Number(e.target.value),
+                    })
+                      .then(() =>
+                        client.invalidateQueries({ queryKey: ["replay"] }),
                       )
-                    )
-                      return;
-                    command.mutate(
-                      replay.data?.running
-                        ? "pause"
-                        : replay.data?.mode === "snapshot"
-                          ? "start"
-                          : "resume",
-                    );
+                      .catch((e) => setToast(e.message));
                   }}
                 >
-                  {replay.data?.running ? (
-                    <Pause size={13} />
-                  ) : (
-                    <Play size={13} />
-                  )}{" "}
-                  {replay.data?.running
-                    ? "Pause"
-                    : replay.data?.mode === "snapshot"
-                      ? "Start"
-                      : "Resume"}
-                </button>
-                <button
-                  aria-label="Reset replay"
-                  disabled={command.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Reset to an empty demo session? Transactions, alerts and investigation history clear. Evidence archives remain until server restart.",
-                      )
+                  {[1, 30, 60, 300, 1000, 3600].map((n) => (
+                    <option value={n} key={n}>
+                      {n}×
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={command.isPending}
+                onClick={() => {
+                  if (
+                    replay.data?.mode === "snapshot" &&
+                    !window.confirm(
+                      "Start historical replay? This clears the loaded snapshot and investigations, preserving session evidence archives.",
                     )
-                      command.mutate("reset");
-                  }}
-                >
-                  <RotateCcw size={13} />
-                </button>
-              </div>
+                  )
+                    return;
+                  command.mutate(
+                    replay.data?.running
+                      ? "pause"
+                      : replay.data?.mode === "snapshot"
+                        ? "start"
+                        : "resume",
+                  );
+                }}
+              >
+                {replay.data?.running ? (
+                  <Pause size={13} />
+                ) : (
+                  <Play size={13} />
+                )}{" "}
+                {replay.data?.running
+                  ? "Pause"
+                  : replay.data?.mode === "snapshot"
+                    ? "Start"
+                    : "Resume"}
+              </button>
+              <button
+                aria-label="Reset replay"
+                disabled={command.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Reset to an empty demo session? Transactions, alerts and investigation history clear. Evidence archives remain until server restart.",
+                    )
+                  )
+                    command.mutate("reset");
+                }}
+              >
+                <RotateCcw size={13} />
+              </button>
             </div>
-            {help && (
-              <div className="notice help">
-                <button aria-label="Close guide" onClick={() => setHelp(false)}>
-                  <X size={15} />
-                </button>
-                <strong>15-minute demo</strong>
-                <p>
-                  Review overview metrics → filter transactions → open an alert
-                  → generate New evidence → commit via Blockchain Audit → start
-                  investigation → add a note → generate a fresh decision version
-                  → commit and verify → explore its network → adjust rules → run
-                  historical replay → inspect evaluation.
-                </p>
-                <p>
-                  Data and cases reset on backend restart. CSV labels never
-                  drive detection. Connect a reviewer wallet and deploy using
-                  contracts/README.md for real Sepolia operations.
-                </p>
-              </div>
-            )}
-            <Routes>
-              <Route path="/" element={<Overview hours={hours} />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/alerts" element={<Alerts />} />
-              <Route
-                path="/investigations"
-                element={<Alerts investigations />}
-              />
-              <Route
-                path="/investigations/:id"
-                element={<Investigation notify={setToast} />}
-              />
-              <Route path="/network" element={<Graph />} />
-              <Route path="/rules" element={<Rules notify={setToast} />} />
-              <Route
-                path="/evaluation"
-                element={<Evaluation hours={hours} />}
-              />
-              <Route path="/audit" element={<Audit notify={setToast} />} />
-              <Route
-                path="*"
-                element={
-                  <div className="empty">
-                    View not found. <NavLink to="/">Return to overview</NavLink>
-                  </div>
-                }
-              />
-            </Routes>
-            <footer>
-              <span>
-                <Shield size={12} /> AML Sentinel · University research
-                demonstration
-              </span>
-              <span>
-                In-memory session <i /> Simulated historical data <i /> Evidence
-                before conclusions
-              </span>
-            </footer>
-          </main>
+          </div>
         </div>
+        <main>
+          {location.pathname !== "/" && (
+            <div className="page-heading">
+              <h1>{current.name}</h1>
+              <p>{current.blurb}</p>
+            </div>
+          )}
+          {help && (
+            <div className="notice help">
+              <button aria-label="Close guide" onClick={() => setHelp(false)}>
+                <X size={15} />
+              </button>
+              <strong>15-minute demo</strong>
+              <p>
+                Review overview metrics → filter transactions → open an alert →
+                generate New evidence → commit via Blockchain Audit → start
+                investigation → add a note → generate a fresh decision version →
+                commit and verify → explore its network → adjust rules → run
+                historical replay → inspect evaluation.
+              </p>
+              <p>
+                Data and cases reset on backend restart. CSV labels never drive
+                detection. Connect a reviewer wallet and deploy using
+                contracts/README.md for real Sepolia operations.
+              </p>
+            </div>
+          )}
+          <Routes>
+            <Route path="/" element={<Overview hours={hours} />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/investigations" element={<Alerts investigations />} />
+            <Route
+              path="/investigations/:id"
+              element={<Investigation notify={setToast} />}
+            />
+            <Route path="/network" element={<Graph />} />
+            <Route path="/rules" element={<Rules notify={setToast} />} />
+            <Route path="/evaluation" element={<Evaluation hours={hours} />} />
+            <Route path="/audit" element={<Audit notify={setToast} />} />
+            <Route
+              path="*"
+              element={
+                <div className="empty">
+                  View not found. <NavLink to="/">Return to overview</NavLink>
+                </div>
+              }
+            />
+          </Routes>
+        </main>
+        <footer className="site-footer">
+          <div className="site-footer-inner">
+            <span>
+              <strong>AML Sentinel</strong> university demonstration with
+              simulated data
+            </span>
+            <span>Detection engine active, 6 configurable rules</span>
+          </div>
+        </footer>
         {toast && (
           <div className="toast" role="status">
             {toast}

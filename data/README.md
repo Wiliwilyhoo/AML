@@ -15,6 +15,7 @@ Raw IBM data is not bundled. Obtain it from the [IBM AML dataset reference](http
 | Payment Currency | Required string; uppercased; detection currency |
 | Payment Format | Required string, e.g. ACH, Wire, Credit Card |
 | Is Laundering | Optional 0/1; empty means unknown, used only for evaluation |
+| Scenario, Case ID | Optional columns written by `scripts/generate_sample_data.py`; the loader ignores them |
 
 Column names are trimmed, lowercased, with spaces and periods normalized to underscores; normalized forms such as `account_1` also work. A missing required column or invalid required cell rejects the import with a row-specific error instead of silently dropping financial records. Missing labels stay unknown and are excluded from classification metrics. No imputation of account, amount or timestamp is performed.
 
@@ -22,4 +23,4 @@ Accounts are represented as `bank:account`, preventing identical account strings
 
 The loader reads only the first `AML_LIMIT` rows with Pandas `nrows` (default 50,000, ceiling 100,000), preserving account strings and sorting that bounded subset by UTC timestamp and ID. It does not scan a multi-million-row file into memory. Select a representative chronologically appropriate CSV subset for exam evaluation; the first N rows need not be representative of the full dataset.
 
-Amounts are not converted between currencies. Volume totals and chart series are grouped by source currency. Rule thresholds are nominal demo values applied separately to each currency; historical windows do not combine currencies. Labels in sample files mark planted high-value, structuring, fan-in and fund-movement scenarios. Detection need not reproduce them exactly: legitimate-looking activity can also trigger heuristic signals.
+Amounts are not converted between currencies. Volume totals and chart series are grouped by source currency. Rule thresholds are nominal demo values applied separately to each currency; historical windows do not combine currencies. Generated labels mark six planted patterns plus four slower or smaller variants that the default rules are expected to miss. Legitimate payroll, merchant settlement, large invoice and treasury sweep cases are labelled 0 and are expected to raise false alerts. Detection need not reproduce them exactly: legitimate-looking activity can also trigger heuristic signals.

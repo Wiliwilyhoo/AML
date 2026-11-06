@@ -123,7 +123,7 @@ export default function Graph() {
           title="Account relationships"
           meta={
             <span className="legend">
-              <i /> Account <i className="pink" /> High risk
+              <i className="neutral" /> Account <i className="pink" /> High risk
             </span>
           }
         >
@@ -146,7 +146,7 @@ export default function Graph() {
         <Panel title="Selection intelligence" meta="Exploratory evidence">
           {selected.kind === "account" ? (
             <div className="detail-content">
-              <span className="eyebrow">FINANCIAL ACCOUNT</span>
+              <span className="field-label">Financial account</span>
               <h3 className="mono">{selected.id}</h3>
               <p>
                 {related.data?.total || 0} related transfers in the loaded

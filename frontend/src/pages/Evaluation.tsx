@@ -80,7 +80,7 @@ export default function Evaluation({ hours = 0 }: { hours?: number }) {
                   },
                   yAxis: {
                     type: "value",
-                    splitLine: { lineStyle: { color: "#1b293c" } },
+                    splitLine: { lineStyle: { color: "#e6e9ee" } },
                   },
                   series: [
                     {
@@ -88,7 +88,7 @@ export default function Evaluation({ hours = 0 }: { hours?: number }) {
                       data: Object.values(d.rules),
                       barMaxWidth: 35,
                       itemStyle: {
-                        color: "#2dd4bf",
+                        color: "#ff5300",
                         borderRadius: [4, 4, 0, 0],
                       },
                     },
@@ -148,7 +148,7 @@ export default function Evaluation({ hours = 0 }: { hours?: number }) {
           <Chart
             option={{
               tooltip: { trigger: "item" },
-              legend: { bottom: 5, textStyle: { color: "#9aabc3" } },
+              legend: { bottom: 5, textStyle: { color: "#566072" } },
               series: [
                 {
                   type: "pie",

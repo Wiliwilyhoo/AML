@@ -3,6 +3,7 @@ import os
 import time
 from collections import Counter
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 import pandas as pd
 from .data import load_csv, normalize, sample_rows
 from .detection import Detector, RULES, severity
@@ -18,7 +19,7 @@ class State:
         self.lock = asyncio.Lock()
         self.config = RuleConfig()
         path = os.getenv('AML_CSV', '').strip()
-        self.source = 'IBM / supplied CSV' if path else 'Synthetic demonstration data'
+        self.source = Path(path).name if path else 'Synthetic demonstration data'
         self.dataset = load_csv(path, int(os.getenv('AML_LIMIT', '50000'))) if path else normalize(pd.DataFrame(sample_rows(int(os.getenv('AML_SAMPLE_SIZE', '3000')))))
         self.evidence = {}
         self.clients = set()
