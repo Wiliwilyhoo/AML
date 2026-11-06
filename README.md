@@ -1,6 +1,6 @@
 # AML Sentinel
 
-A working university demonstration of blockchain-enabled AML monitoring. React/TypeScript/Vite, FastAPI/Pandas, six explainable rules, in-memory investigations, timestamp-aware WebSocket replay, ECharts, Cytoscape, and a hash-only Solidity audit trail. Original dark enterprise interface; no Splunk assets or branding.
+A working university demonstration of blockchain-enabled AML monitoring. React/TypeScript/Vite, FastAPI/Pandas, six explainable rules, in-memory investigations, timestamp-aware WebSocket replay, ECharts, Cytoscape, and a hash-only Solidity audit trail. Original light interface with an orange accent; no third-party logos or branding.
 
 ## Run on Windows PowerShell
 
@@ -35,6 +35,8 @@ Generate a reproducible CSV from the repository root (with backend dependencies 
 ```powershell
 python scripts/generate_sample_data.py --rows 3000 --seed 19
 ```
+
+The default 2% suspicious rate can be changed with `--suspicious-rate`. Use `--rows 20000 --output data/sample/transactions_20000.csv` for a larger evaluation file.
 
 Download IBM Transactions for Anti-Money Laundering from [Kaggle](https://www.kaggle.com/datasets/ealtman2019/ibm-transactions-for-anti-money-laundering-aml), subject to its terms. Place a transaction CSV in `data/raw/`, then restart the backend from `backend/`:
 

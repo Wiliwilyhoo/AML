@@ -1,13 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  Activity,
-  ArrowRight,
-  ShieldAlert,
-  ScanLine,
-  Wallet,
-  FolderSearch,
-  Users,
-} from "lucide-react";
+import { Activity, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import type { Dashboard } from "../types";
@@ -37,7 +29,6 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
     {
       label: "Total transactions",
       value: number(d.transactions),
-      icon: ScanLine,
       meta: "Loaded in active session",
     },
     {
@@ -49,54 +40,50 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
         }).format(d.volume_by_currency[currency] || 0) +
         " " +
         currency,
-      icon: Wallet,
       meta:
         currencies.length > 1
-          ? "Primary currency · totals below"
+          ? "Primary currency, totals below"
           : "Source currency · no FX conversion",
     },
     {
       label: "Flagged transactions",
+      flagged: true,
       value: number(d.flagged),
-      icon: ShieldAlert,
       meta: (d.flagged_rate * 100).toFixed(1) + "% of monitored transactions",
     },
     {
       label: "Open investigations",
       value: number(d.open_investigations),
-      icon: FolderSearch,
       meta: "Under review or escalated",
     },
     {
       label: "High-risk accounts",
       value: number(d.high_risk_accounts),
-      icon: Users,
       meta: "Linked to a transaction scoring 50+",
     },
   ];
   return (
     <>
-      <div className="section-line">
-        <span>
-          <i className="dot" /> Detection engine operational
-        </span>
-        <span>
-          {d.source} <span className="divider">/</span>{" "}
-          {hours ? "Last " + hours + " source hours" : "All loaded time"}
-        </span>
-      </div>
-      <div className="kpi-grid">
-        {kpis.map((k) => (
-          <div className="kpi" key={k.label}>
-            <div className="kpi-top">
-              {k.label}
-              <k.icon size={17} />
+      <section className="overview-hero">
+        <h1>See every flagged transfer and the evidence behind it</h1>
+        <p>
+          Rules flag unusual activity, analysts review it, and each decision is
+          committed to Sepolia. Showing {d.source},{" "}
+          {hours ? "last " + hours + " source hours" : "all loaded time"}.
+        </p>
+        <Link className="button primary" to="/alerts">
+          Review {number(d.alerts)} alerts
+        </Link>
+        <dl className="hero-stats">
+          {kpis.map((k) => (
+            <div className={k.flagged ? "flagged" : ""} key={k.label}>
+              <small>{k.meta}</small>
+              <dt>{k.label}</dt>
+              <dd>{k.value}</dd>
             </div>
-            <strong>{k.value}</strong>
-            <small>{k.meta}</small>
-          </div>
-        ))}
-      </div>
+          ))}
+        </dl>
+      </section>
       <div className="grid-wide">
         <Panel
           title="Transaction volume over time"
@@ -111,12 +98,12 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
               xAxis: {
                 type: "category",
                 data: times.map((x) => x.slice(5)),
-                axisLine: { lineStyle: { color: "#253249" } },
-                axisLabel: { color: "#7b8ca5" },
+                axisLine: { lineStyle: { color: "#c3c9d3" } },
+                axisLabel: { color: "#566072" },
               },
               yAxis: {
                 type: "value",
-                splitLine: { lineStyle: { color: "#1b293c" } },
+                splitLine: { lineStyle: { color: "#e6e9ee" } },
                 axisLabel: {
                   formatter: (v: number) =>
                     v >= 1000000 ? (v / 1e6).toFixed(1) + "m" : v / 1000 + "k",
@@ -134,7 +121,7 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
                         (x) => x.time === t && x.currency === currency,
                       )?.amount || 0,
                   ),
-                  lineStyle: { width: 2, color: "#2dd4bf" },
+                  lineStyle: { width: 2, color: "#ff5300" },
                   areaStyle: {
                     color: {
                       type: "linear",
@@ -143,8 +130,8 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
                       x2: 0,
                       y2: 1,
                       colorStops: [
-                        { offset: 0, color: "#2dd4bf40" },
-                        { offset: 1, color: "#2dd4bf00" },
+                        { offset: 0, color: "#ff530033" },
+                        { offset: 1, color: "#ff530000" },
                       ],
                     },
                   },
@@ -159,7 +146,7 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
               tooltip: { trigger: "item" },
               legend: {
                 bottom: 0,
-                textStyle: { color: "#9aabc3" },
+                textStyle: { color: "#566072" },
                 itemWidth: 9,
                 itemHeight: 9,
               },
@@ -169,13 +156,13 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
                   radius: ["52%", "75%"],
                   center: ["50%", "43%"],
                   label: { show: false },
-                  itemStyle: { borderColor: "#111b29", borderWidth: 4 },
+                  itemStyle: { borderColor: "#ffffff", borderWidth: 4 },
                   data: ["Critical", "High", "Medium", "Low"].map(
                     (name, i) => ({
                       name,
                       value: d.severity[name] || 0,
                       itemStyle: {
-                        color: ["#fb7185", "#fbbf24", "#60a5fa", "#2dd4bf"][i],
+                        color: ["#a51c12", "#ff5300", "#e0a800", "#8b95a5"][i],
                       },
                     }),
                   ),
@@ -188,7 +175,7 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
                   top: "34%",
                   style: {
                     text: number(d.flagged),
-                    fill: "#e2e8f0",
+                    fill: "#141a24",
                     fontSize: 30,
                     fontWeight: 600,
                   },
@@ -197,7 +184,7 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
                   type: "text",
                   left: "center",
                   top: "48%",
-                  style: { text: "FLAGGED", fill: "#8292aa", fontSize: 10 },
+                  style: { text: "flagged", fill: "#566072", fontSize: 12 },
                 },
               ],
             }}
@@ -222,14 +209,14 @@ export default function Overview({ hours = 0 }: { hours?: number }) {
               },
               yAxis: {
                 type: "value",
-                splitLine: { lineStyle: { color: "#1b293c" } },
+                splitLine: { lineStyle: { color: "#e6e9ee" } },
               },
               series: [
                 {
                   type: "bar",
                   barMaxWidth: 24,
                   data: d.suspicious_trend.map((x) => x.count),
-                  itemStyle: { color: "#5a8de0", borderRadius: [3, 3, 0, 0] },
+                  itemStyle: { color: "#141a24", borderRadius: [3, 3, 0, 0] },
                 },
               ],
             }}

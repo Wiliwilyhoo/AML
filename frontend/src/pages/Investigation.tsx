@@ -78,7 +78,7 @@ export default function Investigation({
       </Link>
       <div className="case-heading">
         <div>
-          <span className="eyebrow">INVESTIGATION WORKSPACE</span>
+          <span className="field-label">Investigation</span>
           <h2>{a.rule_name}</h2>
           <span className="mono muted">{a.id}</span>
         </div>

@@ -89,7 +89,7 @@ export default function Audit({ notify }: { notify: (s: string) => void }) {
       <Panel title="Ethereum audit connection" meta={<Wallet size={16} />}>
         <div className="wallet-grid">
           <div>
-            <span className="eyebrow">WALLET</span>
+            <span className="field-label">Wallet</span>
             <p className="mono">{wallet || "Not connected"}</p>
             <button
               className="primary"
@@ -104,12 +104,12 @@ export default function Audit({ notify }: { notify: (s: string) => void }) {
             </button>
           </div>
           <div>
-            <span className="eyebrow">NETWORK / CHAIN ID</span>
+            <span className="field-label">Network and chain ID</span>
             <p>Ethereum Sepolia · {chainId}</p>
             <Badge value={configured ? "Configured" : "Unconfigured"} />
           </div>
           <div>
-            <span className="eyebrow">AUDIT CONTRACT</span>
+            <span className="field-label">Audit contract</span>
             <p className="mono wrap">
               {address || "Not deployed / address not supplied"}
             </p>
@@ -179,7 +179,7 @@ export default function Audit({ notify }: { notify: (s: string) => void }) {
                     <dd>
                       {hashEvidence(e.payload) === e.hash
                         ? "Canonical hash matches"
-                        : "HASH MISMATCH"}
+                        : "Hash mismatch"}
                     </dd>
                   </div>
                   <div>

@@ -9,7 +9,7 @@ The source follows the teaching example's STEP structure: state and mappings, ev
 ## Compile and run Remix tests
 
 1. Open https://remix.ethereum.org and create `contracts/AMLAuditTrail.sol`; paste this repository's contract source.
-2. Open Solidity Compiler, select **0.8.20**, EVM target **Shanghai**, enable optimization at 200 runs (optional), and compile. Keep these settings recorded for explorer verification.
+2. Open Solidity Compiler, select **0.8.20**, EVM target **Shanghai**, enable optimization at 200 runs, and compile. The test contract is about 34 KB without the optimizer, above the 24 KB contract size limit, and about 21 KB with it. Keep these settings recorded for explorer verification.
 3. Enable the **Solidity Unit Testing** plugin. Create `contracts/tests/AMLAuditTrail_test.sol` from the repository test file; its relative import must resolve to the source. Remix supplies `remix_tests.sol`.
 4. Select the test file and run tests. They cover authorized registration, unauthorized registration/role grant, duplicates, historical hash verification, tampering, valid/invalid reviews, version reuse, grant/revoke and zero inputs.
 5. Event assertions use the manual transaction-log checklist below because the Remix Assert library cannot inspect arbitrary emitted receipt logs directly.
